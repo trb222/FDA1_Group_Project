@@ -354,15 +354,12 @@ def load_data(ticker, start, end):
                 
                 # Display a sample of the data
               if st.checkbox("Show sample of loaded data", value=False):
-    st.subheader("Data Summary")
-    
-    st.write("**Columns:**", data.columns.tolist())
-    
-    st.write("**First 3 Rows:**")
-    st.dataframe(data.head(3))
-    
-    st.write("**Last 3 Rows:**")
-    st.dataframe(data.tail(3))
+                  st.subheader("Data Summary")
+                  st.write("**Columns:**", data.columns.tolist())
+                  st.write("**First 3 Rows:**")
+                  st.dataframe(data.head(3))
+                  st.write("**Last 3 Rows:**")
+                  st.dataframe(data.tail(3))
 
                 
                 return data
