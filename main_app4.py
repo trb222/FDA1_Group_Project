@@ -424,20 +424,28 @@ if page == "Dashboard" and data is not None:
     except Exception as e:
         st.warning(f"Detailed stock info not available: {e}")
 
-    # Show sample of loaded data inside an expander (moved under metrics)
+    # Show sample of loaded data inside an expander (clean version)
     with st.expander("View Sample of Loaded Data"):
         st.subheader("Sample of Loaded Data")
     
-        # Create a combined table: first 4 rows + blank + last 3 rows
+        # Create a combined table: first 4 rows + blank row + last 3 rows
         first_part = data.head(4)
         blank_row = pd.DataFrame([[""] * data.shape[1]], columns=data.columns)
         last_part = data.tail(3)
-        
+    
         combined_sample = pd.concat([first_part, blank_row, last_part])
-        
+    
+        # Round all numeric columns to 2 decimals
+        combined_sample = combined_sample.copy()
+        for col in combined_sample.columns:
+            if pd.api.types.is_numeric_dtype(combined_sample[col]):
+                if col.lower() == 'volume':
+                    combined_sample[col] = combined_sample[col].apply(lambda x: f"{int(x):,}" if x != "" else "")
+                else:
+                    combined_sample[col] = combined_sample[col].apply(lambda x: f"{x:.2f}" if x != "" else "")
+
         st.dataframe(combined_sample)
 
-    
     # Price chart tab
     tab1, tab2 = st.tabs(["Price Chart", "Technical Indicators"])
     
