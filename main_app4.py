@@ -423,6 +423,20 @@ if page == "Dashboard" and data is not None:
             st.metric("52 Week Range", f"${stock_info.get('fiftyTwoWeekLow', 'N/A')} - ${stock_info.get('fiftyTwoWeekHigh', 'N/A')}")
     except Exception as e:
         st.warning(f"Detailed stock info not available: {e}")
+
+    # Show sample of loaded data inside an expander (moved under metrics)
+        with st.expander("View Sample of Loaded Data"):
+        st.subheader("Sample of Loaded Data")
+    
+        # Create a combined table: first 4 rows + blank + last 3 rows
+        first_part = data.head(4)
+        blank_row = pd.DataFrame([[""] * data.shape[1]], columns=data.columns)
+        last_part = data.tail(3)
+        
+        combined_sample = pd.concat([first_part, blank_row, last_part])
+        
+        st.dataframe(combined_sample)
+
     
     # Price chart tab
     tab1, tab2 = st.tabs(["Price Chart", "Technical Indicators"])
