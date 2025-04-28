@@ -351,17 +351,7 @@ def load_data(ticker, start, end):
                 if data.empty:
                     st.error(f"No data found for {ticker}. Please check the ticker symbol.")
                     return None
-                
-                # Display a sample of the data
-                    if st.checkbox("Show sample of loaded data", value=False):
-                      st.subheader("Data Summary")
-                      st.write("**Columns:**", data.columns.tolist())
-                      st.write("**First 3 Rows:**")
-                      st.dataframe(data.head(3))
-                      st.write("**Last 3 Rows:**")
-                      st.dataframe(data.tail(3))
-
-                
+     
                 return data
             except Exception as e:
                 if attempt < 2:  # Try again if not last attempt
@@ -433,6 +423,14 @@ if page == "Dashboard" and data is not None:
             st.metric("52 Week Range", f"${stock_info.get('fiftyTwoWeekLow', 'N/A')} - ${stock_info.get('fiftyTwoWeekHigh', 'N/A')}")
     except Exception as e:
         st.warning(f"Detailed stock info not available: {e}")
+    # Show sample of loaded data
+        if st.checkbox("Show sample of loaded data", value=False):
+            st.subheader("Data Summary")
+            st.write("**Columns:**", data.columns.tolist())
+            st.write("**First 3 Rows:**")
+            st.dataframe(data.head(3))
+            st.write("**Last 3 Rows:**")
+            st.dataframe(data.tail(3))
     
     # Price chart tab
     tab1, tab2 = st.tabs(["Price Chart", "Technical Indicators"])
