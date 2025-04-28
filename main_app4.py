@@ -121,60 +121,73 @@ def calculate_bollinger_bands(data, window=20, num_std=2):
     return result_df
 
 def add_features(data):
-    """Add basic technical indicators for prediction"""
+    """Add technical indicators, lag features, and volume-based features"""
+    import pandas as pd
+    import numpy as np
+
     if data is None or len(data) == 0:
         st.error("No data available to add features. Please check your data source.")
         return None
-        
+
     df = data.copy()
-    
+
     # Ensure the expected columns exist
     required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
     for col in required_columns:
         if col not in df.columns:
             st.error(f"Missing required column: {col}. Available columns: {df.columns.tolist()}")
             return None
-    
-    # Add SMA
-    df['SMA_5'] = calculate_sma(df, 5)
-    df['SMA_20'] = calculate_sma(df, 20)
-    df['SMA_50'] = calculate_sma(df, 50)
-    
-    # Add EMA
-    df['EMA_12'] = calculate_ema(df, 12)
-    df['EMA_26'] = calculate_ema(df, 26)
-    
-    # Add RSI
-    df['RSI_14'] = calculate_rsi(df)
-    
-    # Add MACD
-    try:
-        macd_data = calculate_macd(df)
-        df['MACD'] = macd_data['MACD']
-        df['MACD_Signal'] = macd_data['MACD_Signal']
-        df['MACD_Histogram'] = macd_data['MACD_Histogram']
-    except Exception as e:
-        st.warning(f"Error calculating MACD: {e}. Skipping this indicator.")
-    
-    # Add Bollinger Bands
-    try:
-        bb_data = calculate_bollinger_bands(df)
-        df['BB_Upper'] = bb_data['BB_Upper']
-        df['BB_Middle'] = bb_data['BB_Middle']
-        df['BB_Lower'] = bb_data['BB_Lower']
-    except Exception as e:
-        st.warning(f"Error calculating Bollinger Bands: {e}. Skipping this indicator.")
-    
-    # Price changes
+
+    # =======================
+    # Basic Technical Indicators
+    # =======================
+    df['SMA_5'] = df['Close'].rolling(window=5).mean()
+    df['SMA_20'] = df['Close'].rolling(window=20).mean()
+    df['EMA_12'] = df['Close'].ewm(span=12, adjust=False).mean()
+    df['EMA_26'] = df['Close'].ewm(span=26, adjust=False).mean()
+
+    delta = df['Close'].diff()
+    gain = delta.where(delta > 0, 0)
+    loss = -delta.where(delta < 0, 0)
+    avg_gain = gain.rolling(window=14).mean()
+    avg_loss = loss.rolling(window=14).mean()
+    rs = avg_gain / avg_loss
+    df['RSI_14'] = 100 - (100 / (1 + rs))
+
+    ema_fast = df['Close'].ewm(span=12, adjust=False).mean()
+    ema_slow = df['Close'].ewm(span=26, adjust=False).mean()
+    df['MACD'] = ema_fast - ema_slow
+    df['MACD_Signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
+    df['MACD_Histogram'] = df['MACD'] - df['MACD_Signal']
+
+    sma = df['Close'].rolling(window=20).mean()
+    std = df['Close'].rolling(window=20).std()
+    df['BB_Upper'] = sma + (std * 2)
+    df['BB_Lower'] = sma - (std * 2)
+
+    # =======================
+    # Volume-based Indicators
+    # =======================
+    df['OBV'] = (np.sign(df['Close'].diff()) * df['Volume']).fillna(0).cumsum()
+
     df['Daily_Return'] = df['Close'].pct_change()
     df['Daily_Range'] = (df['High'] - df['Low']) / df['Close']
-    
-    # Volume features
     df['Volume_Change'] = df['Volume'].pct_change()
-    
-    # Target: price movement (1 if up, 0 if down)
+
+    # =======================
+    # Lag Features (memory of past days)
+    # =======================
+    for lag in [1, 2, 3]:
+        df[f'Close_lag_{lag}'] = df['Close'].shift(lag)
+        df[f'Daily_Return_lag_{lag}'] = df['Daily_Return'].shift(lag)
+        df[f'RSI_14_lag_{lag}'] = df['RSI_14'].shift(lag)
+        df[f'MACD_lag_{lag}'] = df['MACD'].shift(lag)
+
+    # =======================
+    # Target Variable
+    # =======================
     df['Target'] = (df['Close'].shift(-1) > df['Close']).astype(int)
-    
+
     return df
 
 # Prediction Functions
