@@ -425,7 +425,7 @@ if page == "Dashboard" and data is not None:
         st.warning(f"Detailed stock info not available: {e}")
 
     # Show sample of loaded data inside an expander (moved under metrics)
-        with st.expander("View Sample of Loaded Data"):
+    with st.expander("View Sample of Loaded Data"):
         st.subheader("Sample of Loaded Data")
     
         # Create a combined table: first 4 rows + blank + last 3 rows
