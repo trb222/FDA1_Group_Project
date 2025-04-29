@@ -745,22 +745,61 @@ elif page == "Predictions" and data is not None:
                     learning_rate = st.slider("Learning rate", 0.01, 0.3, 0.1, step=0.01)
                     max_depth = st.slider("Maximum tree depth", 2, 10, 5)
                 
+                # Add Auto-Tune checkbox
+                auto_tune = st.checkbox("Auto-Tune Model Parameters", value=False)
+
                 # Train and evaluate model
                 if st.button("Train Model"):
                     with st.spinner(f"Training {model_type} model..."):
+                        best_params = {}
+
+                        if model_type in ["Random Forest", "XGBoost"]:
+                            if auto_tune:
+                                st.info("Auto-tuning model parameters...this may take ~10-20 seconds.")
+                
+                                from sklearn.model_selection import RandomizedSearchCV
+                                import numpy as np
+
+                                if model_type == "Random Forest":
+                                    from sklearn.ensemble import RandomForestClassifier
+                                    base_model = RandomForestClassifier(random_state=42)
+                                    param_dist = {
+                                        'n_estimators': np.arange(50, 300, 50),
+                                        'max_depth': np.arange(2, 20, 2),
+                                        'min_samples_split': [5, 10, 20]
+                                    }
+                                else:  # XGBoost
+                                    from xgboost import XGBClassifier
+                                    base_model = XGBClassifier(random_state=42, use_label_encoder=False, eval_metric='logloss')
+                                    param_dist = {
+                                        'n_estimators': np.arange(50, 300, 50),
+                                        'max_depth': np.arange(2, 10, 2),
+                                        'learning_rate': np.linspace(0.01, 0.3, 10)
+                                    }    
+
+                                search = RandomizedSearchCV(
+                                    base_model, param_distributions=param_dist,
+                                    n_iter=10, cv=3, scoring='accuracy', random_state=42, verbose=0
+                                )
+                                search.fit(X_train, y_train)
+                                best_params = search.best_params_
+                                st.success(f"Best Parameters Found: {best_params}")
+
+                        # Train final model using tuned or user-input parameters
                         if model_type == "Random Forest":
                             model, predictions, probabilities, scaler = train_random_forest(
-                                X_train, X_test, y_train, 
-                                n_estimators=n_estimators,
-                                max_depth=max_depth
+                                X_train, X_test, y_train,
+                                n_estimators=best_params.get('n_estimators', n_estimators),
+                                max_depth=best_params.get('max_depth', max_depth)
                             )
                         else:  # XGBoost
                             model, predictions, probabilities, scaler = train_xgboost(
-                                X_train, X_test, y_train, 
-                                n_estimators=n_estimators,
-                                learning_rate=learning_rate,
-                                max_depth=max_depth
+                                X_train, X_test, y_train,
+                                n_estimators=best_params.get('n_estimators', n_estimators),
+                                learning_rate=best_params.get('learning_rate', learning_rate),
+                                max_depth=best_params.get('max_depth', max_depth)
                             )
+
                         
                         # Display results
                         accuracy, report, conf_matrix = evaluate_model(y_test, predictions)
