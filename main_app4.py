@@ -751,6 +751,12 @@ elif page == "Predictions" and data is not None:
                 # Train and evaluate model
                 if st.button("Train Model"):
                     with st.spinner(f"Training {model_type} model..."):
+                        # Prepare features and split data
+                        X, y, feature_cols = prepare_features(data_with_features)
+                        test_size_value = test_size / 100
+                        X_train, X_test, y_train, y_test = train_test_split(
+                        X, y, test_size=test_size_value, random_state=42, shuffle=False
+                        )
                         best_params = {}
 
                         if model_type in ["Random Forest", "XGBoost"]:
