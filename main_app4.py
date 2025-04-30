@@ -371,22 +371,22 @@ def predict_next_day(model, scaler, latest_data, feature_cols, model_type="Rando
 
         return None  # All attempts failed
 
-# Load stock data
-with st.spinner(f"Loading data for {ticker_symbol}..."):
-    data = load_data(ticker_symbol, start_date, end_date)
+    # Load stock data
+    with st.spinner(f"Loading data for {ticker_symbol}..."):
+        data = load_data(ticker_symbol, start_date, end_date)
 
-# If still None, use fallback test data
-if data is None and ticker_symbol:
-    st.warning("⚠️ Using test data for demonstration purposes.")
-    date_range = pd.date_range(start=start_date, end=end_date, freq='B')
-    test_data = {
-        'Open': np.random.normal(100, 5, size=len(date_range)),
-        'High': np.random.normal(105, 5, size=len(date_range)),
-        'Low': np.random.normal(95, 5, size=len(date_range)),
-        'Close': np.random.normal(102, 5, size=len(date_range)),
-        'Volume': np.random.normal(1_000_000, 200_000, size=len(date_range))
-    }
-    data = pd.DataFrame(test_data, index=date_range)
+    # If still None, use fallback test data
+    if data is None and ticker_symbol:
+        st.warning("⚠️ Using test data for demonstration purposes.")
+        date_range = pd.date_range(start=start_date, end=end_date, freq='B')
+        test_data = {
+            'Open': np.random.normal(100, 5, size=len(date_range)),
+            'High': np.random.normal(105, 5, size=len(date_range)),
+            'Low': np.random.normal(95, 5, size=len(date_range)),
+            'Close': np.random.normal(102, 5, size=len(date_range)),
+            'Volume': np.random.normal(1_000_000, 200_000, size=len(date_range))
+        }
+        data = pd.DataFrame(test_data, index=date_range)
 
 # Dashboard page
 if page == "Dashboard" and data is not None:
