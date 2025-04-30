@@ -343,99 +343,52 @@ def predict_next_day(model, scaler, latest_data, feature_cols, model_type="Rando
     
     return prediction, probability
 
-# Function to load stock data
-@st.cache_data(ttl=3600)
-def load_data(ticker, start, end):
-    try:
-        # Add retry mechanism for robustness
-        for attempt in range(3):
-            try:
-                data = yf.download(ticker, start=start, end=end)
-                
-                # Handle MultiIndex columns if present (fix for February 2025 issue)
-                if isinstance(data.columns, pd.MultiIndex):
-                    # This extracts data for the specific ticker from the MultiIndex
-                    try:
-                        data = data.xs(key=ticker, axis=1, level=1, drop_level=True)
-                    except KeyError:
-                        # If the exact ticker isn't in the MultiIndex, just drop the level
-                        data = data.droplevel(level=0, axis=1)
-                
-                if data.empty:
-                    st.error(f"No data found for {ticker}. Please check the ticker symbol.")
-                    return None
-     
-                return data
-            except Exception as e:
-                if attempt < 2:  # Try again if not last attempt
-                    st.warning(f"Attempt {attempt+1}: Error loading data. Retrying...")
-                    continue
-                else:  # Last attempt failed
-                    st.error(f"Error loading data after multiple attempts: {e}")
-                    return None
-    except Exception as e:
-        st.error(f"Error loading data: {e}")
-        return None
-
-# Load data with error handling
-if ticker_symbol:
-    with st.spinner(f"Loading data for {ticker_symbol}..."):
-        data = load_data(ticker_symbol, start_date, end_date)
-        
-        # If data is still None, try alternative tickers
-        if data is None:
-            alternative_tickers = [
-                f"{ticker_symbol}.US",  # Try with US suffix
-                ticker_symbol.upper(),   # Ensure uppercase
-                f"{ticker_symbol}.OQ"    # Try with NASDAQ suffix
-            ]
-            
-            for alt_ticker in alternative_tickers:
-                st.info(f"Trying alternative ticker format: {alt_ticker}")
-                data = load_data(alt_ticker, start_date, end_date)
-                if data is not None:
-                    ticker_symbol = alt_ticker  # Update the ticker symbol
-                    break
-else:
-    data = None
-
-# Create a test DataFrame if data is None (for debugging)
-if data is None and ticker_symbol:
-    st.warning("Using test data for demonstration purposes.")
-    # Create sample date range
-    date_range = pd.date_range(start=start_date, end=end_date, freq='B')
+    # Function to load stock data with fallback logic
+    @st.cache_data(ttl=3600)
+    def load_data(ticker_symbol, start_date, end_date):
+        tickers_to_try = [
+            ticker_symbol,
+            f"{ticker_symbol}.US",  # US suffix
+            ticker_symbol.upper(),  # uppercase version
+            f"{ticker_symbol}.OQ"   # NASDAQ suffix
+        ]
     
-    # Create sample data
+        for t in tickers_to_try:
+            try:
+                data = yf.download(t, start=start_date, end=end_date)
+            
+                # Handle MultiIndex fix
+                if isinstance(data.columns, pd.MultiIndex):
+                    try:
+                        data = data.xs(key=t, axis=1, level=1, drop_level=True)
+                    except KeyError:
+                        data = data.droplevel(level=0, axis=1)
+            
+                if not data.empty:
+                    return data  # success
+                except Exception as e:
+                    continue  # try next ticker
+
+        return None  # All attempts failed
+
+# Load stock data
+with st.spinner(f"Loading data for {ticker_symbol}..."):
+    data = load_data(ticker_symbol, start_date, end_date)
+
+# If still None, use fallback test data
+if data is None and ticker_symbol:
+    st.warning("⚠️ Using test data for demonstration purposes.")
+    date_range = pd.date_range(start=start_date, end=end_date, freq='B')
     test_data = {
         'Open': np.random.normal(100, 5, size=len(date_range)),
         'High': np.random.normal(105, 5, size=len(date_range)),
         'Low': np.random.normal(95, 5, size=len(date_range)),
         'Close': np.random.normal(102, 5, size=len(date_range)),
-        'Volume': np.random.normal(1000000, 200000, size=len(date_range))
+        'Volume': np.random.normal(1_000_000, 200_000, size=len(date_range))
     }
-    
-    # Create DataFrame
     data = pd.DataFrame(test_data, index=date_range)
 
-# Dashboard page
-if page == "Dashboard" and data is not None:
-    st.header(f"{ticker_symbol} Stock Dashboard")
-    
-    # Display stock information
-    try:
-        stock_info = yf.Ticker(ticker_symbol).info
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric("Current Price", f"${stock_info.get('currentPrice', 'N/A')}")
-        
-        with col2:
-            st.metric("Market Cap", f"${stock_info.get('marketCap', 'N/A'):,}")
-        
-        with col3:
-            st.metric("52 Week Range", f"${stock_info.get('fiftyTwoWeekLow', 'N/A')} - ${stock_info.get('fiftyTwoWeekHigh', 'N/A')}")
-    except Exception as e:
-        st.warning(f"Detailed stock info not available: {e}")
+
         
     # Show sample of loaded data inside an expander (clean version)
     with st.expander("View Sample of Loaded Data"):
