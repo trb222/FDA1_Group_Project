@@ -361,7 +361,7 @@ def load_data(ticker_symbol, start_date, end_date):
             if isinstance(data.columns, pd.MultiIndex):
                 try:
                     data = data.xs(key=t, axis=1, level=1, drop_level=True)
-            except KeyError:
+                except KeyError:
                     data = data.droplevel(level=0, axis=1)
             
             if not data.empty:
