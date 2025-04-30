@@ -388,7 +388,25 @@ if data is None and ticker_symbol:
     }
     data = pd.DataFrame(test_data, index=date_range)
 
-
+# Dashboard page
+if page == "Dashboard" and data is not None:
+    st.header(f"{ticker_symbol} Stock Dashboard")
+    
+    # Display stock information
+    try:
+        stock_info = yf.Ticker(ticker_symbol).info
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Current Price", f"${stock_info.get('currentPrice', 'N/A')}")
+        
+        with col2:
+            st.metric("Market Cap", f"${stock_info.get('marketCap', 'N/A'):,}")
+        
+        with col3:
+            st.metric("52 Week Range", f"${stock_info.get('fiftyTwoWeekLow', 'N/A')} - ${stock_info.get('fiftyTwoWeekHigh', 'N/A')}")
+    except Exception as e:
+        st.warning(f"Detailed stock info not available: {e}")
         
     # Show sample of loaded data inside an expander (clean version)
     with st.expander("View Sample of Loaded Data"):
