@@ -344,45 +344,36 @@ def predict_next_day(model, scaler, latest_data, feature_cols, model_type="Rando
     return prediction, probability
 
 # Function to load stock data with fallback logic
-import time
-from yahooquery import Ticker
-
 @st.cache_data(ttl=3600)
-def load_data_yq(ticker_symbol, start_date, end_date):
-    try:
-        time.sleep(1)  # prevent triggering Yahoo's rate limit
-        start_str = start_date.strftime('%Y-%m-%d')
-        end_str = end_date.strftime('%Y-%m-%d')
+def load_data(ticker_symbol, start_date, end_date):
+    tickers_to_try = [
+        ticker_symbol,
+        f"{ticker_symbol}.US",  # US suffix
+        ticker_symbol.upper(),  # uppercase version
+        f"{ticker_symbol}.OQ"   # NASDAQ suffix
+    ]
 
-        ticker = Ticker(ticker_symbol)
-        hist = ticker.history(start=start_str, end=end_str, interval='1d')
+    for t in tickers_to_try:
+        try:
+            data = yf.download(t, start=start_date, end=end_date)
 
-        if isinstance(hist.index, pd.MultiIndex):
-            hist = hist.reset_index()
+            # Handle MultiIndex fix
+            if isinstance(data.columns, pd.MultiIndex):
+                try:
+                    data = data.xs(key=t, axis=1, level=1, drop_level=True)
+                except KeyError:
+                    data = data.droplevel(level=0, axis=1)
 
-        if 'symbol' in hist.columns:
-            hist = hist[hist['symbol'] == ticker_symbol.upper()]
+            if not data.empty:
+                return data  # success
+        except Exception as e:
+            continue  # try next ticker
 
-        hist['date'] = pd.to_datetime(hist['date'])
-        hist.set_index('date', inplace=True)
-
-        hist.rename(columns={
-            'open': 'Open',
-            'high': 'High',
-            'low': 'Low',
-            'close': 'Close',
-            'volume': 'Volume',
-        }, inplace=True)
-
-        return hist[['Open', 'High', 'Low', 'Close', 'Volume']]
-
-    except Exception as e:
-        st.error(f"Error loading data for {ticker_symbol}: {e}")
-        return None
+    return None  # All attempts failed
 
 # Load stock data
 with st.spinner(f"Loading data for {ticker_symbol}..."):
-    data = load_data_yq(ticker_symbol, start_date, end_date)
+    data = load_data(ticker_symbol, start_date, end_date)
 
 # If still None, use fallback test data
 if data is None and ticker_symbol:
