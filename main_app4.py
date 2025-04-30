@@ -366,8 +366,8 @@ def predict_next_day(model, scaler, latest_data, feature_cols, model_type="Rando
             
                 if not data.empty:
                     return data  # success
-                except Exception as e:
-                    continue  # try next ticker
+            except Exception as e:
+                continue  # try next ticker
 
         return None  # All attempts failed
 
